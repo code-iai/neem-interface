@@ -50,7 +50,8 @@ mem_episode_stop(NeemPath, EndTime) :-
     kb_project([
         holds(TimeInterval, soma:'hasIntervalEnd', EndTime)
     ]),
-    get_time(CurrentTime), atom_concat(NeemPath,'/',X1), atom_concat(X1,CurrentTime,X2), memorize(X2), mem_clear_memory.
+    get_time(CurrentTime), atom_concat(NeemPath,'/',X1), atom_concat(X1,CurrentTime,X2), memorize(X2), 
+    tf_logger_disable, mem_clear_memory,!.
 
 mem_event_set_failed(Action) :- kb_project(action_failed(Action)).
 
@@ -61,11 +62,12 @@ mem_event_add_diagnosis(Situation, Diagnosis) :- kb_project(satisfies(Situation,
 add_subaction_with_task(ParentAction,SubAction,TaskType) :-
     execution_agent(Agent),
     kb_project([
-        new_iri(SubAction, dul:'Action'), has_type(SubAction,soma:'Action'),
+        new_iri(SubAction, dul:'Action'), has_type(SubAction,dul:'Action'),
         new_iri(Task, TaskType), has_type(Task,TaskType), executes_task(SubAction,Task),
         holds(ParentAction,dul:hasConstituent,SubAction), % replacement for has_subevent
         is_performed_by(SubAction,Agent)
     ]),!.
+
 
 mem_event_end(Event) :- execution_agent(Agent),
     get_time(CurrentTime),
@@ -75,7 +77,21 @@ mem_event_end(Event) :- execution_agent(Agent),
     ignore(kb_unproject(triple(TimeInterval, soma:'hasIntervalEnd', double('Infinity')))),
     kb_project([holds(TimeInterval, soma:'hasIntervalEnd', CurrentTime),new_iri(Role, soma:'AgentRole'),has_type(Role, soma:'AgentRole')]),
     kb_project([has_role(Agent,Role) during Event, task_role(Task, Role)]),!.
-    mem_event_begin(Event) :- get_time(CurrentTime),kb_project(occurs(Event) since CurrentTime),!.
+    
+
+mem_event_begin(Event) :- 
+    nonvar(Event),
+    get_time(CurrentTime),
+    kb_project(is_action(Event)),
+    kb_project(occurs(Event) since CurrentTime),!.
+
+mem_event_begin(Event) :- 
+    var(Event),
+    writeln(Event),
+    get_time(CurrentTime),
+    kb_project(new_iri(Event, dul:'Action'), is_action(Event)),
+    writeln(Event),
+    kb_project(occurs(Event) since CurrentTime),!.
 
 %belief_perceived_at(ObjectType, Frame, Object) :- get_time(CurrentTime),execution_agent(Agent),kb_project([has_type(Object,ObjectType),is_at(Object,Frame) since CurrentTime]).
 
@@ -105,20 +121,17 @@ mem_tf_get(Object, ReferenceFrame, Position, Rotation, Timestamp) :-
     time_scope(=(Timestamp), =(Timestamp), QScope),
     tf_get_pose(Object, [ReferenceFrame, Position, Rotation], QScope, _).
 
+
 add_participant_with_role(Action, ObjectId, RoleType) :-
     kb_call([executes_task(Action, Task),
-             triple(Event,dul:'hasTimeInterval',TimeInterval),
-             triple(TimeInterval,soma:'hasIntervalBegin',Start),
-             triple(TimeInterval,soma:'hasIntervalEnd',End)]),
-     kb_project([has_participant(Action,ObjectId),
-                 has_type(Role, RoleType),
-                 has_role(ObjectId,Role) during Action,task_role(Task, Role)]).
-    %kb_project([holds(TimeInterval, soma:'hasIntervalEnd', CurrentTime),new_iri(Role, soma:'AgentRole'),has_type(Role, soma:'AgentRole')]),
-    %kb_project([has_role(Agent,Role) during Event, task_role(Task, Role)]),!.
+            triple(Event,dul:'hasTimeInterval',TimeInterval),
+            triple(TimeInterval,soma:'hasIntervalBegin',Start),
+            triple(TimeInterval,soma:'hasIntervalEnd',End)]),
+    kb_project([has_participant(Action,ObjectId),
+                new_iri(Role, RoleType), has_type(Role, RoleType)]),
+    kb_project(has_role(ObjectId,Role) during Action),!.
 
-%add_participant_with_role(Action, ObjectId, RoleType) :- kb_call(executes_task(Action, Task)), kb_project([has_participant(Action,ObjectId), has_type(Role, RoleType), has_role(ObjectId,Role) during [0.0,0.0]]).
-
-    add_parameter(Task,ParameterType,RegionType) :- kb_project([new_iri(Parameter, ParameterType), has_type(Parameter, ParameterType),
+add_parameter(Task,ParameterType,RegionType) :- kb_project([new_iri(Parameter, ParameterType), has_type(Parameter, ParameterType),
                                                                 new_iri(Region,RegionType),has_type(Region,RegionType),
                                                                 has_assignment(Parameter,Region) during [0.0,0.1],
                                                                 has_parameter(Task, Parameter)]).
