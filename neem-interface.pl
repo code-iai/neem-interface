@@ -31,11 +31,7 @@ mem_episode_start(Action, EnvOwl, EnvOwlIndiName, EnvUrdf, EnvUrdfPrefix, AgentO
         is_performed_by(Action,Agent),
         new_iri(Role, soma:'AgentRole'), has_type(Role, soma:'AgentRole'), has_role(Agent,Role)
     ]),
-    % notify_synchronize(event(Action)),
     !.
-
-%is_recording_episode(Result) :- assertz(cramEpisodeName('None')), retract(cramEpisodeName('None')), (cramEpisodeName(Name) -> Result = Name ; Result = 'NoName').
-%delete_episode_name(Name) :- retract(cramEpisodeName(Name)).
 
 mem_episode_stop(NeemPath) :-
     get_time(EndTime),
@@ -68,7 +64,6 @@ add_subaction_with_task(ParentAction,SubAction,TaskType) :-
         is_performed_by(SubAction,Agent)
     ]),!.
 
-
 mem_event_end(Event) :- execution_agent(Agent),
     get_time(CurrentTime),
     kb_call([
@@ -78,7 +73,6 @@ mem_event_end(Event) :- execution_agent(Agent),
     kb_project([holds(TimeInterval, soma:'hasIntervalEnd', CurrentTime),new_iri(Role, soma:'AgentRole'),has_type(Role, soma:'AgentRole')]),
     kb_project([has_role(Agent,Role) during Event, task_role(Task, Role)]),!.
     
-
 mem_event_begin(Event) :- 
     nonvar(Event),
     get_time(CurrentTime),
@@ -92,8 +86,6 @@ mem_event_begin(Event) :-
     kb_project(new_iri(Event, dul:'Action'), is_action(Event)),
     writeln(Event),
     kb_project(occurs(Event) since CurrentTime),!.
-
-%belief_perceived_at(ObjectType, Frame, Object) :- get_time(CurrentTime),execution_agent(Agent),kb_project([has_type(Object,ObjectType),is_at(Object,Frame) since CurrentTime]).
 
 belief_perceived_at(ObjectType, Mesh, Rotation, Object) :- kb_project([
     has_type(Object,ObjectType),
@@ -120,7 +112,6 @@ mem_tf_get(Object, ReferenceFrame, Position, Rotation) :-
 mem_tf_get(Object, ReferenceFrame, Position, Rotation, Timestamp) :-
     time_scope(=(Timestamp), =(Timestamp), QScope),
     tf_get_pose(Object, [ReferenceFrame, Position, Rotation], QScope, _).
-
 
 add_participant_with_role(Action, ObjectId, RoleType) :-
     kb_call([executes_task(Action, Task),
