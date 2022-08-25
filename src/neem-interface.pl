@@ -1,4 +1,28 @@
-:- rdf_meta(mem_event_create(r,r,r)).
+:- module(neem_interface,
+    [ mem_clear_memory/0,
+      mem_episode_start(r,r,r,r,r,r,r,r),
+      mem_episode_start(r,r,r,r,r,r,r,+),
+      mem_episode_stop(+),
+      mem_episode_stop(+,+),
+      mem_event_set_failed(r),
+      mem_event_set_succeeded(r),
+      mem_event_add_diagnosis(r,r),
+      add_subaction_with_task(r,r,r),
+      mem_event_end(r),
+      mem_event_begin(r),
+      belief_perceived_at(r,+,+,r),
+      belief_perceived_at(r,r),
+      mem_tf_set(r,+,+,+,+),
+      mem_tf_get(r,+,+,+),
+      mem_tf_get(r,+,+,+,+),
+      add_participant_with_role(r,r,r),
+      add_parameter(r,r,r),
+      add_grasping_parameter(r,r),
+      add_comment(r,+),
+      ros_logger_start/0,
+      ros_logger_stop/0
+    ]).
+
 :- use_module(library('db/mongo/client')).
 :- dynamic execution_agent/1.
 
