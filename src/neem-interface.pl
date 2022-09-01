@@ -62,7 +62,7 @@ mem_episode_stop(NeemPath) :-
     mem_episode_stop(NeemPath, EndTime).
 
 mem_episode_stop(NeemPath, EndTime) :-
-    kb_call([
+    once((kb_call([
         is_episode(Episode), is_action(Action), is_setting_for(Episode,Action),
         holds(Action, dul:'hasTimeInterval', TimeInterval)
     ]),
@@ -71,7 +71,7 @@ mem_episode_stop(NeemPath, EndTime) :-
         holds(TimeInterval, soma:'hasIntervalEnd', EndTime)
     ]),
     get_time(CurrentTime), atom_concat(NeemPath,'/',X1), atom_concat(X1,CurrentTime,X2), memorize(X2), 
-    tf_logger_disable, mem_clear_memory,!.
+    tf_logger_disable, mem_clear_memory)).
 
 mem_event_set_failed(Action) :- kb_project(action_failed(Action)).
 
