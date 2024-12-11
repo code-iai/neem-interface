@@ -27,11 +27,15 @@
 :- dynamic execution_agent/1.
 
 % do on launch or check how lispcram does it
+% drops the database and clears memory
 mem_clear_memory() :-
     drop_graph(user),
     tf_mem_clear,
     mng_drop(roslog, tf).
 
+% Needs to be called at the start of the recording of an episode. 
+% This also loads the necessary files like urdf's and owl's into the database
+% returns the ID of the newly generated Action
 mem_episode_start(Action, EnvOwl, EnvOwlIndiName, EnvUrdf, EnvUrdfPrefix, AgentOwl, AgentOwlIndiName, AgentUrdf) :-
     get_time(StartTime),
     mem_episode_start(Action,  EnvOwl, EnvOwlIndiName, EnvUrdf, EnvUrdfPrefix, AgentOwl, AgentOwlIndiName, AgentUrdf, StartTime).
@@ -61,6 +65,8 @@ mem_episode_start(Action, EnvOwl, EnvOwlIndiName, EnvUrdf, EnvUrdfPrefix, AgentO
     ]),
     !.
 
+% stops recording the episode and dumps the episode onto the harddrive under the specified path
+% the episode will be a mongo dump of four collections
 mem_episode_stop(NeemPath) :-
     get_time(EndTime),
     mem_episode_stop(NeemPath, EndTime).
@@ -109,15 +115,15 @@ mem_action_end(Event) :- execution_agent(Agent),
     kb_project([holds(TimeInterval, soma:'hasIntervalEnd', CurrentTime),new_iri(Role, soma:'AgentRole'),has_type(Role, soma:'AgentRole')]),
     kb_project([has_role(Agent,Role) during Event, task_role(Task, Role)]),!.
     
-
+% Event: = dem return value from add_subaction_with_task, so SubAction
+% Does not need to be called manually
+% not external
 mem_action_begin(Event) :- 
     nonvar(Event),
     get_time(CurrentTime),
     kb_project(is_action(Event)),
     kb_project(occurs(Event) since CurrentTime),!.
 
-% Event: = dem return value from add_subaction_with_task, so SubAction
-% Does not to be called manually
 mem_action_begin(Event) :- 
     var(Event),
     writeln(Event),
@@ -148,6 +154,29 @@ belief_perceived_at(ObjectType, Mesh, Position, Rotation, Object) :- kb_project(
 
 belief_perceived_at(ObjectType, Object) :- kb_project([has_type(Object,ObjectType)]).
 
+% ----
+% creates a new instance of a given class and returns the newly generated iri
+new_instance_of_class(Instance, ClassIRI) : -
+    kb_project([new_iri(Instance, ClassIRI),
+                has_type(Instance, CLassIRI)]).
+
+% add a pose to an instance of Location
+% check if time is okay like this
+add_pose_to_location_inst(LocInst, PoseArray) :-
+    kb_project([new_iri(PoseObjInst, soma:'6DPose'),
+    has_type(PoseObjInst, soma:'6DPose'),
+    triple(LocInst, soma:'hasLocation', PoseObjInst)]),
+    time_scope(get_time(StartTime), get_time(EndTime), Scope),
+    tf_set_pose(PoseObjInst, PoseArray, Scope).
+
+
+% Designator Specific
+%add_object_designator_description() :- 
+
+
+
+% ----
+% TF specific
 mem_tf_set(Object, ReferenceFrame, Position, Rotation, Timestamp) :-
     time_scope(=(Timestamp), =<('Infinity'), FScope),
     tf_set_pose(Object, [ReferenceFrame, Position, Rotation], FScope).
@@ -172,11 +201,13 @@ add_participant_with_role(Action, Object, RoleType) :-
                 new_iri(Role, RoleType), has_type(Role, RoleType)]),
     kb_project(has_role(Object,Role) during Action),!.
 
+% ?
 add_parameter(Task,ParameterType,RegionType) :- kb_project([new_iri(Parameter, ParameterType), has_type(Parameter, ParameterType),
                                                                 new_iri(Region,RegionType),has_type(Region,RegionType),
                                                                 has_assignment(Parameter,Region) during [0.0,0.1],
                                                                 has_parameter(Task, Parameter)]).
 
+% ?
 add_grasping_parameter(Action,GraspingOrientationType) :- kb_call(executes_task(Action, Task)),
     kb_project([new_iri(GraspingOrientation,GraspingOrientationType), has_type(GraspingOrientation,GraspingOrientationType),
                 new_iri(GraspingOrientationConcept,'http://www.ease-crc.org/ont/SOMA.owl#GraspingOrientation'),
@@ -186,7 +217,12 @@ add_grasping_parameter(Action,GraspingOrientationType) :- kb_call(executes_task(
                 has_region(Action,GraspingOrientation)]),!.
 
 add_comment(Entity,Comment) :- kb_project(triple(Entity, 'http://www.w3.org/2000/01/rdf-schema#comment', Comment)).
+
+
+% starts the ros logger for tf
 ros_logger_start :- process_create(path('rosrun'),['mongodb_log', 'mongodb_log.py','__name:=topic_logger', '--mongodb-name', 'roslog', '/tf_projection', '/tf'],[process(PID)]),asserta(ros_logger_pid(PID)).
+
+% stops the ros tf logger
 ros_logger_stop :-     ros_logger_pid(PID),
     retractall(ros_logger_pid(PID)),
     process_create(path(rosnode), ['kill', '/topic_logger'],
